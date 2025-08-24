@@ -1,0 +1,9 @@
+# Go Fundcalc
+
+## TODO
+
+- [ ] Serve static HTML Index page
+- [ ] Create templated HTML files and embed chart in there
+- [ ] Create Router with RouteHandler functions and RegisterRoute function
+- [ ] Create analytics on TimeSeries
+- [ ] Convert existing code to TimeSeries

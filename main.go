@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"fundcalc/charts"
-	"fundcalc/reader"
-	"fundcalc/transformer"
+	"fundcalc/pkg/charts"
+	"fundcalc/pkg/reader"
+	"fundcalc/pkg/transformer"
 	"log"
 	"net/http"
 	"strings"
