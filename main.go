@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"fundcalc/charts"
 	"fundcalc/reader"
+	"fundcalc/transformer"
 	"log"
 	"net/http"
 	"strings"
@@ -14,18 +15,19 @@ var funds FundDataMap
 type FundDataMap = map[string]FundData
 
 type FundData struct {
+	Key  string
 	Name string
 	Path string
 }
 
 func init() {
 	funds = FundDataMap{
-		"rathbone-global":  FundData{Name: "Rathbone Global", Path: "data/rathbone-global.csv"},
-		"fssa-asia-focus":  FundData{Name: "FSSA Asia Focus", Path: "data/fssa-asia-focus.csv"},
-		"lg-european":      FundData{Name: "L&G European", Path: "data/lg-european.csv"},
-		"lg-international": FundData{Name: "L&G International", Path: "data/lg-international.csv"},
-		"manglg-japan":     FundData{Name: "Man GLG Japan Core Alpha", Path: "data/manglg-japan.csv"},
-		"hl-select":        FundData{Name: "HL Select", Path: "data/hl-select.csv"},
+		"rathbone-global":  FundData{Key: "rathbone-global", Name: "Rathbone Global", Path: "data/rathbone-global.csv"},
+		"fssa-asia-focus":  FundData{Key: "fssa-asia-focus", Name: "FSSA Asia Focus", Path: "data/fssa-asia-focus.csv"},
+		"lg-european":      FundData{Key: "lg-european", Name: "L&G European", Path: "data/lg-european.csv"},
+		"lg-international": FundData{Key: "lg-international", Name: "L&G International", Path: "data/lg-international.csv"},
+		"manglg-japan":     FundData{Key: "manglg-japan", Name: "Man GLG Japan Core Alpha", Path: "data/manglg-japan.csv"},
+		"hl-select":        FundData{Key: "hl-select", Name: "HL Select", Path: "data/hl-select.csv"},
 	}
 }
 
@@ -37,22 +39,12 @@ func main() {
 
 func httpServer(w http.ResponseWriter, req *http.Request) {
 
-	fund := getFundData(req.URL.Path)
-	if fund.Path == "" {
-		http.Error(w, "Fund not specified in config", http.StatusNotImplemented)
-		log.Printf("Invalid path requested: %v", req.URL.Path)
-		return
-	}
-
-	r := reader.CsvPriceReader{Path: fund.Path}
-	data, err := r.ReadAll()
+	data, err := prepData()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Printf("Failed to read CSV price series data for %s: %v", fund.Path, err)
-		return
 	}
 
-	line := charts.CreatePriceChart(data, fund.Name)
+	line := charts.CreatePriceChart(data)
 	line.Render(w)
 }
 
@@ -60,4 +52,53 @@ func getFundData(ref string) FundData {
 	ref = strings.ToLower(ref)
 	ref = strings.TrimPrefix(ref, "/")
 	return funds[ref]
+}
+
+func getFundSeries(ref transformer.SeriesKey) *transformer.SimpleSeries {
+	fund := getFundData(string(ref))
+	if fund.Key == "" {
+		log.Printf("Invalid path requested: %v", ref)
+		return nil
+	}
+
+	r := reader.CsvPriceReader{Path: fund.Path}
+	data, err := r.ReadAll()
+	if err != nil {
+		log.Printf("Failed to read CSV price series data for %s: %v", fund.Path, err)
+		return nil
+	}
+
+	return &transformer.SimpleSeries{
+		Key:  transformer.SeriesKey(fund.Key),
+		Data: data,
+	}
+}
+
+func prepData() (*transformer.SimpleSeries, error) {
+	weightings := transformer.PortfolioWeightings{
+		"rathbone-global":  389.39,
+		"fssa-asia-focus":  333.208,
+		"lg-european":      138.476,
+		"lg-international": 307.269,
+		"manglg-japan":     293.275,
+		"hl-select":        296.755,
+	}
+
+	series := []*transformer.SimpleSeries{}
+	for k := range weightings {
+		s := getFundSeries(k)
+		if s != nil {
+			series = append(series, s)
+		}
+	}
+
+	pivot := transformer.Pivot("Portfolio", series)
+	combined, err := transformer.CreateWeightedSum(pivot, weightings)
+	if err != nil {
+		return nil, err
+	}
+
+	combined.SortByDate()
+
+	return combined, nil
 }

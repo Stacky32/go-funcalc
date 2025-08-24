@@ -66,7 +66,7 @@ func (r *CsvPriceReader) ReadAll() ([]DataPoint, error) {
 			return nil, err
 		}
 
-		d := DataPoint{Date: record[dateIdx], AdjustedClose: float32(adjClose)}
+		d := DataPoint{Date: TimeStamp(record[dateIdx]), AdjustedClose: float32(adjClose)}
 		data = append(data, d)
 	}
 
