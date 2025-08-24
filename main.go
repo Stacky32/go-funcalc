@@ -5,8 +5,10 @@ import (
 	"fundcalc/pkg/charts"
 	"fundcalc/pkg/reader"
 	"fundcalc/pkg/transformer"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -32,20 +34,39 @@ func init() {
 }
 
 func main() {
+	http.HandleFunc("GET /", handleGetIndex)
+	http.HandleFunc("GET /portfolio", handleGetPortfolio)
+
 	fmt.Println("Listening on http://localhost:8081")
-	http.HandleFunc("/", httpServer)
 	http.ListenAndServe(":8081", nil)
 }
 
-func httpServer(w http.ResponseWriter, req *http.Request) {
+func handleGetIndex(w http.ResponseWriter, req *http.Request) {
+	file, err := os.Open("./index.html")
+	if err != nil {
+		http.Error(w, "Failed to load index", http.StatusInternalServerError)
+	}
+	defer file.Close()
+
+	var r io.Reader = file
+	if _, err := io.Copy(w, r); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func handleGetPortfolio(w http.ResponseWriter, req *http.Request) {
 
 	data, err := prepData()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	line := charts.CreatePriceChart(data)
-	line.Render(w)
+	err = line.Render(w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func getFundData(ref string) FundData {
