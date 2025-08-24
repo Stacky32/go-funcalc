@@ -10,3 +10,4 @@
 - [ ] Add logging
 - [ ] Add timeouts to server
 - [ ] Add req/res size limits
+- [ ] Add caching for data store based on file hash?
