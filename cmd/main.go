@@ -3,13 +3,12 @@ package main
 import (
 	"fmt"
 	"fundcalc/pkg/charts"
+	"fundcalc/pkg/handlers"
 	"fundcalc/pkg/reader"
 	"fundcalc/pkg/series"
 	"fundcalc/pkg/transformer"
-	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -35,24 +34,12 @@ func init() {
 }
 
 func main() {
-	http.HandleFunc("GET /", handleGetIndex)
+	http.HandleFunc("GET /", handlers.GetIndex)
 	http.HandleFunc("GET /portfolio", handleGetPortfolio)
+	http.HandleFunc("GET /portfolio-returns", handleGetReturns)
 
 	fmt.Println("Listening on http://localhost:8081")
 	http.ListenAndServe(":8081", nil)
-}
-
-func handleGetIndex(w http.ResponseWriter, req *http.Request) {
-	file, err := os.Open("./index.html")
-	if err != nil {
-		http.Error(w, "Failed to load index", http.StatusInternalServerError)
-	}
-	defer file.Close()
-
-	var r io.Reader = file
-	if _, err := io.Copy(w, r); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 }
 
 func handleGetPortfolio(w http.ResponseWriter, req *http.Request) {
@@ -63,10 +50,54 @@ func handleGetPortfolio(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	line := charts.CreatePriceChart(data, charts.ChartOptions{Title: "Daily prices for portfolio"})
+	yMap := func(x float64) float64 {
+		return x
+	}
+
+	line := charts.CreatePriceChart(data, charts.ChartOptions{Title: "Daily prices for portfolio"}, yMap)
 	err = line.Render(w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func handleGetReturns(w http.ResponseWriter, req *http.Request) {
+
+	data, err := prepData()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rets, err := data.PeriodReturns()
+	if err != nil {
+		log.Printf("failed to calculate period returns: %#v", err)
+		http.Error(w, "Unable to caculate period returns", http.StatusInternalServerError)
+		return
+	}
+
+	if err = rets.Validate(); err != nil {
+		log.Printf("invalid series: %#v", err)
+		http.Error(w, "Unable to caculate period returns", http.StatusInternalServerError)
+		return
+	}
+
+	if !rets.IsSorted() {
+		log.Printf("series is not in ascending order")
+		http.Error(w, "unable to calculate period returns", http.StatusInternalServerError)
+		return
+	}
+
+	yMap := func(x float64) float64 {
+		return x
+	}
+
+	line := charts.CreatePriceChart(rets, charts.ChartOptions{Title: "Daily returns for portfolio"}, yMap)
+	err = line.Render(w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -120,6 +151,10 @@ func prepData() (*series.TimeSeries, error) {
 
 	combined, err := transformer.CreateWeightedSum(pivot, weightings)
 	if err != nil {
+		return nil, err
+	}
+
+	if err = combined.Validate(); err != nil {
 		return nil, err
 	}
 

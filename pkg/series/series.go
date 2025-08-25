@@ -18,6 +18,23 @@ func (s TimeSeries) Validate() error {
 	return nil
 }
 
+func (s TimeSeries) IsSorted() bool {
+	if len(s.Times) <= 1 {
+		return true
+	}
+
+	prev := s.Times[0]
+	for _, t := range s.Times[1:] {
+		if t.Before(prev) {
+			return false
+		}
+
+		prev = t
+	}
+
+	return true
+}
+
 func (s *TimeSeries) SortByDate() {
 	date := func(t1, t2 *time.Time) bool {
 		if t1 == nil {

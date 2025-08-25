@@ -11,12 +11,12 @@
         "mode": "debug",
         "program": "${file}",
         "debugAdapter": "dlv-dap",
-        "substitutePath": [
-            {
-                "from": "/Data/src",
-                "to": "/home/tom/src"
-            }
-        ]
+        // "substitutePath": [
+        //     {
+        //         "from": "/Data/src",
+        //         "to": "/home/tom/src"
+        //     }
+        // ]
     },
     {
         "name": "Launch Package",

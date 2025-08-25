@@ -15,9 +15,9 @@ func (s *TimeSeries) PeriodReturns() (*TimeSeries, error) {
 	}
 
 	times := s.Times[1:]
-	values := make([]float64, 0, len(s.Values))
+	values := make([]float64, 0, len(s.Values)-1)
 	prev := s.Values[0]
-	for idx, v := range values[:1] {
+	for idx, v := range s.Values[1:] {
 		if prev == 0 {
 			return nil, fmt.Errorf("divide by zero error. s.Values[%d] = 0", idx)
 		}

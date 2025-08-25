@@ -12,7 +12,9 @@ type ChartOptions struct {
 	Title string
 }
 
-func CreatePriceChart(s *series.TimeSeries, op ChartOptions) *charts.Line {
+type ValueMapper func(float64) float64
+
+func CreatePriceChart(s *series.TimeSeries, op ChartOptions, yMap ValueMapper) *charts.Line {
 	line := charts.NewLine()
 	if s == nil {
 		return line
@@ -23,13 +25,13 @@ func CreatePriceChart(s *series.TimeSeries, op ChartOptions) *charts.Line {
 		charts.WithTitleOpts(opts.Title{Title: op.Title}),
 	)
 
-	x, y := generateAxes(s)
+	x, y := generateAxes(s, yMap)
 	line.SetXAxis(x).AddSeries("price", y)
 
 	return line
 }
 
-func generateAxes(s *series.TimeSeries) (x []string, y []opts.LineData) {
+func generateAxes(s *series.TimeSeries, yMap ValueMapper) (x []string, y []opts.LineData) {
 	l := len(s.Times)
 	x = make([]string, 0, l)
 	y = make([]opts.LineData, 0, l)
@@ -38,7 +40,7 @@ func generateAxes(s *series.TimeSeries) (x []string, y []opts.LineData) {
 		x = append(x, t.Format("2006-01-02"))
 
 		// Convert from pence to pounds
-		y = append(y, opts.LineData{Value: s.Values[idx] / 100})
+		y = append(y, opts.LineData{Value: yMap(s.Values[idx])})
 	}
 
 	return x, y
