@@ -77,18 +77,6 @@ func handleGetReturns(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err = rets.Validate(); err != nil {
-		log.Printf("invalid series: %#v", err)
-		http.Error(w, "Unable to caculate period returns", http.StatusInternalServerError)
-		return
-	}
-
-	if !rets.IsSorted() {
-		log.Printf("series is not in ascending order")
-		http.Error(w, "unable to calculate period returns", http.StatusInternalServerError)
-		return
-	}
-
 	yMap := func(x float64) float64 {
 		return x
 	}

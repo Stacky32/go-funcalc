@@ -10,7 +10,7 @@ type TimeSeries struct {
 	Values []float64
 }
 
-func (s TimeSeries) Validate() error {
+func (s *TimeSeries) Validate() error {
 	if len(s.Times) != len(s.Values) {
 		return errors.New("fields Times and Values must have the same length")
 	}
@@ -18,7 +18,7 @@ func (s TimeSeries) Validate() error {
 	return nil
 }
 
-func (s TimeSeries) IsSorted() bool {
+func (s *TimeSeries) IsSorted() bool {
 	if len(s.Times) <= 1 {
 		return true
 	}
