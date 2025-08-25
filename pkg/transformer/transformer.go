@@ -3,110 +3,94 @@ package transformer
 import (
 	"errors"
 	"fmt"
-	"fundcalc/pkg/reader"
+	"fundcalc/pkg/series"
+	"time"
 )
 
-type TimeStamp = reader.TimeStamp
 type SeriesKey string
 
+type PortfolioWeightings map[SeriesKey]float64
+
 type DataTable struct {
-	Key     SeriesKey
-	Data    map[TimeStamp](map[SeriesKey]float32)
 	Headers map[SeriesKey]struct{}
+	Data    map[time.Time]map[SeriesKey]float64
 }
 
-type PortfolioWeightings map[SeriesKey]float32
-
-type SimpleSeries struct {
-	Key  SeriesKey
-	Data []reader.DataPoint
-}
-
-func (s *SimpleSeries) SortByDate() {
-	date := func(p1, p2 *reader.DataPoint) bool {
-		d1, err := p1.Date.ParseDate()
-		if err != nil {
-			return false
-		}
-
-		d2, err := p2.Date.ParseDate()
-		if err != nil {
-			return false
-		}
-
-		return d1.Before(d2)
+func Pivot(key string, labels []SeriesKey, series []*series.TimeSeries) (*DataTable, error) {
+	if len(labels) != len(series) {
+		return nil, errors.New("labels and series must be the same length")
 	}
 
-	By(date).Sort(s.Data)
-}
-
-func Pivot(key string, series []*SimpleSeries) *DataTable {
-	res := &DataTable{
-		Key:     SeriesKey(key),
-		Data:    map[TimeStamp](map[SeriesKey]float32){},
-		Headers: map[SeriesKey]struct{}{},
+	if len(series) == 0 {
+		return &DataTable{}, nil
 	}
 
-	for _, s := range series {
-		res.Headers[s.Key] = struct{}{}
-		for _, p := range s.Data {
-			row := res.Data[p.Date]
+	headers := make(map[SeriesKey]struct{}, len(labels))
+	for _, l := range labels {
+		headers[l] = struct{}{}
+	}
+
+	data := make(map[time.Time]map[SeriesKey]float64, len(series[0].Times))
+
+	for i1, s := range series {
+		label := labels[i1]
+		for i2, t := range s.Times {
+			row := data[t]
 			if row == nil {
-				res.Data[p.Date] = map[SeriesKey]float32{}
+				data[t] = map[SeriesKey]float64{}
 			}
 
-			res.Data[p.Date][s.Key] = p.AdjustedClose
+			data[t][label] = s.Values[i2]
 		}
 	}
 
 	// Postprocess
-	for ts, r := range res.Data {
+	for ts, r := range data {
 		// Check for missing values in row
 		for _, v := range r {
 			if v == 0 {
-				delete(res.Data, ts)
+				delete(data, ts)
 				break
 			}
 		}
 	}
 
-	return res
+	dt := DataTable{
+		Headers: headers,
+		Data:    data,
+	}
+
+	return &dt, nil
 }
 
-func CreateWeightedSum(data *DataTable, weights PortfolioWeightings) (*SimpleSeries, error) {
-	if data == nil {
+func CreateWeightedSum(dt *DataTable, weights PortfolioWeightings) (*series.TimeSeries, error) {
+	if dt == nil {
 		return nil, errors.New("input data table must not be nil")
 	}
 
 	// check weightings exist in headers
 	for k := range weights {
-		if _, ok := data.Headers[k]; !ok {
+		if _, ok := dt.Headers[k]; !ok {
 			return nil, fmt.Errorf("fund %s is missing from input data", k)
 		}
 	}
 
-	acc := getAccumulator(weights)
-
-	res := &SimpleSeries{Key: SeriesKey(data.Key)}
-	for ts, x := range data.Data {
-		res.Data = append(res.Data, reader.DataPoint{
-			Date:          ts,
-			AdjustedClose: acc(x),
-		})
-	}
-
-	return res, nil
-}
-
-type WeightedAccumulator func(map[SeriesKey]float32) float32
-
-func getAccumulator(w PortfolioWeightings) WeightedAccumulator {
-	return func(row map[SeriesKey]float32) float32 {
-		total := float32(0)
+	acc := func(row map[SeriesKey]float64) float64 {
+		total := float64(0)
 		for k, v := range row {
-			total += w[k] * v
+			total += weights[k] * v
 		}
 
 		return total
 	}
+
+	times := make([]time.Time, 0, len(dt.Data))
+	values := make([]float64, 0, len(dt.Data))
+
+	for ts, x := range dt.Data {
+		times = append(times, ts)
+		values = append(values, acc(x))
+	}
+
+	return &series.TimeSeries{Times: times, Values: values}, nil
 }

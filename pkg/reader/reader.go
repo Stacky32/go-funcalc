@@ -3,21 +3,19 @@ package reader
 import (
 	"encoding/csv"
 	"fmt"
+	"fundcalc/pkg/series"
 	"io"
 	"os"
 	"slices"
 	"strconv"
+	"time"
 )
-
-type PriceReader interface {
-	ReadAll() ([]DataPoint, error)
-}
 
 type CsvPriceReader struct {
 	Path string
 }
 
-func (r *CsvPriceReader) ReadAll() ([]DataPoint, error) {
+func (r *CsvPriceReader) ReadAll() (*series.TimeSeries, error) {
 	file, err := os.Open(r.Path)
 	if err != nil {
 		return nil, err
@@ -44,7 +42,8 @@ func (r *CsvPriceReader) ReadAll() ([]DataPoint, error) {
 		return nil, err
 	}
 
-	data := []DataPoint{}
+	times := []time.Time{}
+	values := []float64{}
 
 	for {
 		record, err := reader.Read()
@@ -61,14 +60,19 @@ func (r *CsvPriceReader) ReadAll() ([]DataPoint, error) {
 			continue
 		}
 
-		adjClose, err := strconv.ParseFloat(record[adjCloseIdx], 32)
+		adjClose, err := strconv.ParseFloat(record[adjCloseIdx], 64)
 		if err != nil {
 			return nil, err
 		}
 
-		d := DataPoint{Date: TimeStamp(record[dateIdx]), AdjustedClose: float32(adjClose)}
-		data = append(data, d)
+		t, err := series.TimeStamp(record[dateIdx]).Parse()
+		if err != nil {
+			return nil, err
+		}
+
+		times = append(times, t)
+		values = append(values, float64(adjClose))
 	}
 
-	return data, nil
+	return &series.TimeSeries{Times: times, Values: values}, nil
 }

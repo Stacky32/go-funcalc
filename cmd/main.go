@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"fundcalc/pkg/charts"
 	"fundcalc/pkg/reader"
+	"fundcalc/pkg/series"
 	"fundcalc/pkg/transformer"
 	"io"
 	"log"
@@ -62,7 +63,7 @@ func handleGetPortfolio(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	line := charts.CreatePriceChart(data)
+	line := charts.CreatePriceChart(data, charts.ChartOptions{Title: "Daily prices for portfolio"})
 	err = line.Render(w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -75,7 +76,7 @@ func getFundData(ref string) FundData {
 	return funds[ref]
 }
 
-func getFundSeries(ref transformer.SeriesKey) *transformer.SimpleSeries {
+func getFundSeries(ref transformer.SeriesKey) *series.TimeSeries {
 	fund := getFundData(string(ref))
 	if fund.Key == "" {
 		log.Printf("Invalid path requested: %v", ref)
@@ -89,13 +90,10 @@ func getFundSeries(ref transformer.SeriesKey) *transformer.SimpleSeries {
 		return nil
 	}
 
-	return &transformer.SimpleSeries{
-		Key:  transformer.SeriesKey(fund.Key),
-		Data: data,
-	}
+	return data
 }
 
-func prepData() (*transformer.SimpleSeries, error) {
+func prepData() (*series.TimeSeries, error) {
 	weightings := transformer.PortfolioWeightings{
 		"rathbone-global":  389.39,
 		"fssa-asia-focus":  333.208,
@@ -105,15 +103,21 @@ func prepData() (*transformer.SimpleSeries, error) {
 		"hl-select":        296.755,
 	}
 
-	series := []*transformer.SimpleSeries{}
+	labels := make([]transformer.SeriesKey, 0, len(weightings))
+	series := make([]*series.TimeSeries, 0, len(weightings))
 	for k := range weightings {
+		labels = append(labels, k)
 		s := getFundSeries(k)
 		if s != nil {
 			series = append(series, s)
 		}
 	}
 
-	pivot := transformer.Pivot("Portfolio", series)
+	pivot, err := transformer.Pivot("Portfolio", labels, series)
+	if err != nil {
+		return nil, err
+	}
+
 	combined, err := transformer.CreateWeightedSum(pivot, weightings)
 	if err != nil {
 		return nil, err
