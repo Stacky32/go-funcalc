@@ -39,7 +39,10 @@ func main() {
 	http.HandleFunc("GET /portfolio-returns", handleGetReturns)
 
 	fmt.Println("Listening on http://localhost:8081")
-	http.ListenAndServe(":8081", nil)
+	if err := http.ListenAndServe(":8081", nil); err != nil {
+		log.Fatalf("Critical error. Shutting down...\nError: %#v\n", err)
+
+	}
 }
 
 func handleGetPortfolio(w http.ResponseWriter, req *http.Request) {

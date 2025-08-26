@@ -21,7 +21,11 @@ func (r *CsvPriceReader) ReadAll() (*series.TimeSeries, error) {
 		return nil, err
 	}
 
-	defer file.Close()
+	defer func() {
+		if err = file.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	reader := csv.NewReader(file)
 

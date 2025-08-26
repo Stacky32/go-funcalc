@@ -11,7 +11,12 @@ func GetIndex(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to load index", http.StatusInternalServerError)
 	}
-	defer file.Close()
+
+	defer func() {
+		if err = file.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	var r io.Reader = file
 	if _, err := io.Copy(w, r); err != nil {
