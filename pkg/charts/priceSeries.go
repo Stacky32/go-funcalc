@@ -14,6 +14,8 @@ type ChartOptions struct {
 
 type ValueMapper func(float64) float64
 
+func IdentityMapping(x float64) float64 { return x }
+
 func CreatePriceChart(s *series.TimeSeries, op ChartOptions, yMap ValueMapper) *charts.Line {
 	line := charts.NewLine()
 	if s == nil {

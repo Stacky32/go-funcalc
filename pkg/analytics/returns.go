@@ -1,17 +1,18 @@
-package series
+package analytics
 
 import (
 	"errors"
 	"fmt"
+	"fundcalc/pkg/series"
 )
 
-func (s *TimeSeries) PeriodReturns() (*TimeSeries, error) {
+func PeriodReturns(s *series.TimeSeries) (*series.TimeSeries, error) {
 	if s == nil {
 		return nil, errors.New("can't calculate return of nil series")
 	}
 
 	if len(s.Times) <= 1 {
-		return &TimeSeries{}, nil
+		return &series.TimeSeries{}, nil
 	}
 
 	times := s.Times[1:]
@@ -27,5 +28,5 @@ func (s *TimeSeries) PeriodReturns() (*TimeSeries, error) {
 		prev = v
 	}
 
-	return &TimeSeries{Times: times, Values: values}, nil
+	return &series.TimeSeries{Times: times, Values: values}, nil
 }

@@ -1,14 +1,27 @@
-package series_test
+package analytics_test
 
 import (
 	"errors"
+	"fundcalc/pkg/analytics"
 	"fundcalc/pkg/series"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPeriodReturns(t *testing.T) {
+func GetTestSeries(json string) *series.TimeSeries {
+	r := strings.NewReader(json)
+	dec := series.NewDecoder(r)
+	s := series.TimeSeries{}
+	if err := dec.DecodeSeries(&s); err != nil {
+		panic(err)
+	}
+
+	return &s
+}
+
+func TestPeriodReturns_Properties(t *testing.T) {
 	testCases := []struct {
 		name          string
 		series        *series.TimeSeries
@@ -25,7 +38,7 @@ func TestPeriodReturns(t *testing.T) {
 		},
 		{
 			name: "one element",
-			series: getTestSeries(`
+			series: GetTestSeries(`
 			{
 				"Times": ["2018-07-04T00:00:00Z"],
 				"Values": [105.43]
@@ -33,7 +46,7 @@ func TestPeriodReturns(t *testing.T) {
 		},
 		{
 			name: "two elements unordered",
-			series: getTestSeries(`
+			series: GetTestSeries(`
 			{
 				"Times": ["2018-07-04T00:00:00Z", "2018-07-03T00:00:00Z"],
 				"Values": [107.53, 103.7]
@@ -41,7 +54,7 @@ func TestPeriodReturns(t *testing.T) {
 		},
 		{
 			name: "two elements unordered",
-			series: getTestSeries(`
+			series: GetTestSeries(`
 			{
 				"Times": ["2018-07-02T00:00:00Z", "2018-07-03T00:00:00Z", "2018-07-04T00:00:00Z", "2018-07-05T00:00:00Z"],
 				"Values": [100.00, 101.00, 102.01, 101.90]
@@ -51,7 +64,7 @@ func TestPeriodReturns(t *testing.T) {
 
 	for _, scenario := range testCases {
 		t.Run(scenario.name, func(t *testing.T) {
-			rets, err := scenario.series.PeriodReturns()
+			rets, err := analytics.PeriodReturns(scenario.series)
 			if scenario.expectedError != nil {
 				assert.Equal(t, scenario.expectedError, err)
 				return
