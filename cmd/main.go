@@ -41,7 +41,6 @@ func main() {
 	fmt.Println("Listening on http://localhost:8081")
 	if err := http.ListenAndServe(":8081", nil); err != nil {
 		log.Fatalf("Critical error. Shutting down...\nError: %#v\n", err)
-
 	}
 }
 
