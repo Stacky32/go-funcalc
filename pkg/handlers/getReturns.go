@@ -9,7 +9,7 @@ import (
 
 func GetReturns(weightings portfolio.PortfolioWeightings, funds portfolio.FundDataMap) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := PrepareTimeSeries(weightings, funds, analytics.PeriodReturns)
+		data, err := PrepareTimeSeries(weightings, funds, analytics.Returns(25))
 		if err != nil {
 			msg := "Unable to caculate period returns."
 			logError(msg, err)
