@@ -3,7 +3,7 @@ module fundcalc
 go 1.22
 
 require (
-	github.com/go-echarts/go-echarts/v2 v2.6.3
+	github.com/go-echarts/go-echarts/v2 v2.6.4
 	github.com/stretchr/testify v1.11.1
 )
 
